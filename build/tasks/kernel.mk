@@ -217,6 +217,12 @@ define make-dtbo-target
 $(call internal-make-kernel-target,$(PRODUCT_OUT)/dtbo,$(1))
 endef
 
+# Make a DTB targets
+# $(1): The DTB target to build (eg. dtbs, defconfig)
+define make-dtb-target
+$(call internal-make-kernel-target,$(PRODUCT_OUT)/dtbs,$(1))
+endef
+
 $(KERNEL_OUT):
 	mkdir -p $(KERNEL_OUT)
 
@@ -239,7 +245,7 @@ $(KERNEL_CONFIG): $(KERNEL_DEFCONFIG_SRC) $(KERNEL_ADDITIONAL_CONFIG_OUT)
 			$(call make-kernel-target,KCONFIG_ALLCONFIG=$(KERNEL_OUT)/.config alldefconfig); \
 		fi
 
-$(TARGET_PREBUILT_INT_KERNEL): $(KERNEL_CONFIG)
+$(TARGET_PREBUILT_INT_KERNEL): $(KERNEL_CONFIG) $(DEPMOD)
 	@echo "Building Kernel"
 	$(call make-kernel-target,$(BOARD_KERNEL_IMAGE_NAME))
 	$(hide) if grep -q '^CONFIG_OF=y' $(KERNEL_CONFIG); then \
@@ -273,7 +279,6 @@ alldefconfig: $(KERNEL_OUT)
 		 $(call make-kernel-target,alldefconfig)
 
 ifeq ($(TARGET_NEEDS_DTBOIMAGE),true)
-BOARD_PREBUILT_DTBOIMAGE = $(PRODUCT_OUT)/dtbo/arch/$(KERNEL_ARCH)/boot/dtbo.img
 $(BOARD_PREBUILT_DTBOIMAGE):
 	echo -e ${CL_GRN}"Building DTBO.img"${CL_RST}
 	$(call make-dtbo-target,$(KERNEL_DEFCONFIG))
@@ -301,5 +306,14 @@ kernel: $(INSTALLED_KERNEL_TARGET)
 
 .PHONY: dtboimage
 dtboimage: $(INSTALLED_DTBOIMAGE_TARGET)
+
+ifeq ($(BOARD_INCLUDE_DTB_IN_BOOTIMG),true)
+$(BOARD_PREBUILT_DTBIMAGE_DIR):
+	echo -e ${CL_GRN}"Building DTBs"${CL_RST}
+	$(call make-dtb-target,$(KERNEL_DEFCONFIG))
+	$(call make-dtb-target,dtbs)
+.PHONY: dtbimage
+dtbimage: $(INSTALLED_DTBIMAGE_TARGET)
+endif # BOARD_INCLUDE_DTB_IN_BOOTIMG
 
 endif # TARGET_NO_KERNEL
